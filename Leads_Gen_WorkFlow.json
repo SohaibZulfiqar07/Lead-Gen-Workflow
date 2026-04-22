@@ -1,0 +1,873 @@
+{
+  "name": "Leads Gen WorkFlow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 4
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        16
+      ],
+      "id": "cccedfd0-3dfa-40ef-91aa-ea106660e06c",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0/edit?gid=1795345408#gid=1795345408",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1991103457,
+          "mode": "list",
+          "cachedResultName": "Settings",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0/edit#gid=1991103457"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        16
+      ],
+      "id": "4c32945c-e7bd-4628-8ad0-00fbc0c0518c",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "utkYCd76RPZGPcb6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Converts the Settings tab into a key-value object\nconst settings = {};\nfor (const item of items) {\n  settings[item.json.Key] = item.json.Value;\n}\nreturn [{ json: settings }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        16
+      ],
+      "id": "63302279-bb57-4505-887b-88c1d4c456eb",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0/edit?gid=1795345408#gid=1795345408",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Targets",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        16
+      ],
+      "id": "efe51be3-d1a3-4676-9692-e61f42e163b2",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "utkYCd76RPZGPcb6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6dba79e7-b553-4c5e-a20a-f36b9927713e",
+              "leftValue": "={{$json.ats_type}}",
+              "rightValue": "greenhouse",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1088,
+        16
+      ],
+      "id": "8394f02a-4062-4f5b-9401-e98c1994d1e1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "split each row  into individual items",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        896,
+        16
+      ],
+      "id": "95831f21-74d7-45e8-9f44-1dd3082a4a65",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "const company = $json.company_name || '';\nconst atsType = $json.ats_type || '';\n\nif (atsType === 'greenhouse' && Array.isArray($json.jobs)) {\n  return $json.jobs.map(job => ({\n    json: {\n      date: new Date().toISOString().split('T')[0],\n      signal_type: 'Hiring',\n      name: '',\n      company: company,\n      role: job.title || '',\n      source_url: job.absolute_url || '',\n      location: job.location?.name || '',\n      context: `${company} is actively hiring for: ${job.title}`,\n      outreach_draft: '',\n      status: 'new'\n    }\n  }));\n}\n\nif (atsType === 'lever' && Array.isArray($json)) {\n  return $json.map(job => ({\n    json: {\n      date: new Date().toISOString().split('T')[0],\n      signal_type: 'Hiring',\n      name: '',\n      company: company,\n      role: job.text || '',\n      source_url: job.hostedUrl || '',\n      location: job.categories?.location || '',\n      context: `${company} is hiring for: ${job.text}`,\n      outreach_draft: '',\n      status: 'new'\n    }\n  }));\n}\n\nreturn [];\n```\n\n---\n\n### Node 8 — Filter Roles (IF Node)\n\n- Node type: **IF**\n- Condition: `{{ $json.role }}` **matches regex**\n- Regex value:\n```\n  (?i)(content|growth|marketing|seo|social|brand|copywriter|community|demand|automation|ai|web)"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        16
+      ],
+      "id": "5c0de350-9d50-4e6d-87c5-75d3017701a9",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "url": "=https://boards-api.greenhouse.io/v1/boards/{{ $json.company_slug }}/jobs?per_page=500",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1312,
+        -160
+      ],
+      "id": "03f560ed-016a-440d-a076-19777b5017f9",
+      "name": "Greenhouse API"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.lever.co/v0/postings/{{ $json.company_slug }}?mode=json&limit=100",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1312,
+        32
+      ],
+      "id": "bc3a4376-c7ec-425b-8127-55942f25b371",
+      "name": "Lever API"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.producthunt.com/v2/api/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": ""
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"query { posts(first: 50) { edges { node { name tagline url createdAt makers { name } } } } }\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        176,
+        192
+      ],
+      "id": "6dc2a9e5-a6a7-46de-bad7-64e473a2e824",
+      "name": "Product Hunt HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const edges = $json.data?.posts?.edges || [];\n\nreturn edges.map(e => {\n  const post = e.node;\n  const maker = post.makers?.[0]?.name || '';\n\n  return {\n    json: {\n      date: post.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],\n      signal_type: 'Product Launch',\n      name: maker,\n      company: post.name || '',\n      role: 'Founder/Maker',\n      source_url: post.url || '',\n      context: post.tagline || '',\n      outreach_draft: '',\n      status: 'new'\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        192
+      ],
+      "id": "9a5c6ae8-6b0f-4c56-9fe0-c202784b2fd8",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        848,
+        384
+      ],
+      "id": "dee07802-3c29-458b-99ba-7ffe1071661a",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "source_url",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        384
+      ],
+      "id": "ad36dc75-743d-4e77-9cea-7cd74d70a44a",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reads daily_limit from Settings\nconst settings = $('Code in JavaScript').first().json;\nconst limit = parseInt(settings.daily_limit) || 100;\nreturn items.slice(0, limit);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        384
+      ],
+      "id": "9d783b7f-ae64-4e92-923d-a9c0cac922c6",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": ""
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"max_tokens\": 200,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You write short cold outreach for an AI Automation, Web Dev and Marketing agency. Be direct, no fluff, 80-120 words. Reference the signal. Goal is to start a conversation.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Write outreach for:\\nName: {{ $json.name }}\\nCompany: {{ $json.company }}\\nRole: {{ $json.role }}\\nSignal: {{ $json.signal_type }}\\nContext: {{ $json.context }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1520,
+        288
+      ],
+      "id": "c8fdc7c3-e00d-4a4c-9401-8b9a7cd5e7ee",
+      "name": "GROQ API HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f22df415-1c18-45ba-a4d9-09dcd37a69b0",
+              "name": "outreach_draft",
+              "value": "={{ $json.choices[0].message.content }}",
+              "type": "string"
+            },
+            {
+              "id": "88dc5861-cd2a-43ef-b7d8-a50b13d61f77",
+              "name": "date",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "5f505f57-978c-4e25-8f06-664b415e15bc",
+              "name": "name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "432238e5-0621-4a97-abcb-13a5bc1a0495",
+              "name": "company",
+              "value": "={{ $json.company }}",
+              "type": "string"
+            },
+            {
+              "id": "7338e87a-5123-4887-8ef1-6b04f8012a5c",
+              "name": "role",
+              "value": "={{ $json.role }}",
+              "type": "string"
+            },
+            {
+              "id": "9763ba82-c453-4a72-9725-49cb505b9dc1",
+              "name": "source_url",
+              "value": "={{ $json.source_url }}",
+              "type": "string"
+            },
+            {
+              "id": "b81c1157-3ca8-4012-8ad6-b97fcb271a78",
+              "name": "context",
+              "value": "={{ $json.context }}",
+              "type": "string"
+            },
+            {
+              "id": "646ae686-3be3-4322-96b7-2f5f5942a6e1",
+              "name": "status",
+              "value": "new",
+              "type": "string"
+            },
+            {
+              "id": "44288f18-a987-4771-8425-73e67d90fbd3",
+              "name": "email",
+              "value": "=Not Found!",
+              "type": "string"
+            },
+            {
+              "id": "983e4eb7-818a-41b2-ac72-8fdff82e4302",
+              "name": "reply",
+              "value": "pending",
+              "type": "string"
+            },
+            {
+              "id": "3a73b86c-650d-49cc-9a86-7ac67082d53e",
+              "name": "signal_type",
+              "value": "Hiring",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2096,
+        128
+      ],
+      "id": "55767210-b856-4d11-b123-f05d761d36e6",
+      "name": "OutReach_Draft"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1664,
+        384
+      ],
+      "id": "af9f6a4c-0124-43b1-b8ac-4af27b3f7629",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0/edit?gid=1795345408#gid=1795345408",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1795345408,
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0/edit#gid=1795345408"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "name": "={{ $json.name }}",
+            "company": "={{ $json.company }}",
+            "role": "={{ $json.role }}",
+            "source_url": "={{ $json.source_url }}",
+            "context": "={{ $json.context }}",
+            "outreach_draft": "={{ $json.outreach_draft }}",
+            "status": "=new",
+            "email": "={{ $json.email }}",
+            "contacted_date": "={{ $json.contacted_date }}",
+            "reply": "={{ $json.reply }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "signal_type",
+              "displayName": "signal_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "context",
+              "displayName": "context",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "outreach_draft",
+              "displayName": "outreach_draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contacted_date",
+              "displayName": "contacted_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reply",
+              "displayName": "reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2288,
+        128
+      ],
+      "id": "bc3c96e9-cfa5-44a4-85f0-472d97a74fcc",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "utkYCd76RPZGPcb6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1795345408,
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14hJirVrbc0DSs85Q_Y9zx0FxBsQcHDxWJSMUmh9Fvl0/edit#gid=1795345408"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        384
+      ],
+      "id": "fd843618-eb10-4aa4-93af-80db172c597f",
+      "name": "Read Existing Leads",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "utkYCd76RPZGPcb6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all source_urls already stored in Leads sheet\nconst existingUrls = new Set(\n  $('Read Existing Leads').all().map(i => i.json.source_url).filter(Boolean)\n);\n\n// Filter out any lead already in the sheet\nreturn items.filter(item => {\n  const url = item.json.source_url;\n  return url && !existingUrls.has(url);\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        128
+      ],
+      "id": "5eabe6e3-c0b5-405a-ac55-ca22f1701c6a",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1328,
+        288
+      ],
+      "id": "ace953ed-d72e-46de-b9f9-6e1cda4cf9a4",
+      "name": "Wait",
+      "webhookId": "84c82066-9333-483a-907b-e41f893b56e7"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Product Hunt HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Greenhouse API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lever API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Greenhouse API": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lever API": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Product Hunt HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GROQ API HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Read Existing Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OutReach_Draft": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing Leads": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "OutReach_Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "GROQ API HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "a3a13b6b-4064-441f-a270-4605f71c9bc1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d88f959d53e9a34bafebeaaed464cf4d5aa0afe146d3da71a55c739f623c48e7"
+  },
+  "id": "CtNE6F0nD9yQkukdqhDGD",
+  "tags": []
+}
